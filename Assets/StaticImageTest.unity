@@ -313,6 +313,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1f6e859e1efbee845904d071d123cf4f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _scoreThreshold: 0.5
+  _overlapThreshold: 0.5
   _image: {fileID: 2800000, guid: 6e4df74f29d97de4fb4903861ec3c293, type: 3}
   _resources: {fileID: 11400000, guid: 0e35379d12c75624e9d9e74bca0d4e4e, type: 2}
   _markerParent: {fileID: 22604675}
