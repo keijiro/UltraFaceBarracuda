@@ -11,6 +11,7 @@ sealed class WebcamTest : MonoBehaviour
     [SerializeField, Range(0, 1)] float _overlapThreshold = 0.5f;
     [SerializeField] ResourceSet _resources = null;
     [SerializeField] Shader _visualizer = null;
+    [SerializeField] Texture2D _texture = null;
     [SerializeField] UI.RawImage _previewUI = null;
 
     #endregion
@@ -85,8 +86,9 @@ sealed class WebcamTest : MonoBehaviour
         // Bounding box visualization
         _detector.SetIndirectDrawCount(_drawArgs);
         _material.SetFloat("_Threshold", _scoreThreshold);
+        _material.SetTexture("_Texture", _texture);
         _material.SetBuffer("_Boxes", _detector.BoundingBoxBuffer);
-        _material.SetPass(0);
+        _material.SetPass(_texture == null ? 0 : 1);
         Graphics.DrawProceduralIndirectNow
           (MeshTopology.Triangles, _drawArgs, 0);
     }
