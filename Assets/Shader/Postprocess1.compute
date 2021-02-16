@@ -1,0 +1,33 @@
+#pragma kernel Postprocess
+
+// 
+// 1st postprocessor (bounding box aggregation)
+//
+
+#include "Common.hlsl"
+
+// Input uniforms
+Texture2D<float> _Scores;
+Texture2D<float> _Boxes;
+float _Threshold;
+
+// Output uniforms
+AppendStructuredBuffer<BoundingBox> _Output;
+
+[numthreads(20, 1, 1)]
+void Postprocess(uint3 id : SV_DispatchThreadID)
+{
+    float score = _Scores.Load(uint3(1, id.x, 0));
+    if (score < _Threshold) return;
+
+    BoundingBox box;
+
+    box.x1 = _Boxes.Load(uint3(0, id.x, 0));
+    box.y1 = _Boxes.Load(uint3(1, id.x, 0));
+    box.x2 = _Boxes.Load(uint3(2, id.x, 0));
+    box.y2 = _Boxes.Load(uint3(3, id.x, 0));
+    box.score = score;
+    box.pad = 0;
+
+    _Output.Append(box);
+}

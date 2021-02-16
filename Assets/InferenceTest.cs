@@ -1,58 +1,31 @@
 using UnityEngine;
 using UnityEngine.UI;
-using Unity.Barracuda;
 
 namespace UltraFace
 {
 
 public sealed class InferenceTest : MonoBehaviour
 {
-    [SerializeField] WorkerFactory.Type _workerType;
-    [SerializeField] NNModel _model;
     [SerializeField] Texture2D _image;
+    [SerializeField] ResourceSet _resources;
     [SerializeField] RectTransform _markerParent;
     [SerializeField] RectTransform _markerPrefab;
 
     void Start()
     {
-        // Input image -> Tensor (1, 240, 320, 3)
-        var source = new float[240 * 320 * 3];
+        using var detector = new FaceDetector(_resources);
 
-        for (var y = 0; y < 240; y++)
-        {
-            for (var x = 0; x < 320; x++)
-            {
-                var i = ((239 - y) * 320 + x) * 3;
-                var p = _image.GetPixel(x, y);
-                source[i + 0] = p.r * 2 - 1;
-                source[i + 1] = p.g * 2 - 1;
-                source[i + 2] = p.b * 2 - 1;
-            }
-        }
-
-        // Inference
-        var model = ModelLoader.Load(_model);
-        using var worker = WorkerFactory.CreateWorker(_workerType, model);
-
-        using (var tensor = new Tensor(1, 240, 320, 3, source))
-            worker.Execute(tensor);
-
-        // Results
-        var scores = worker.PeekOutput("scores");
-        var boxes = worker.PeekOutput("boxes");
+        detector.ProcessImage(_image, 0.7f, 0.5f);
 
         var uiw = _markerParent.rect.width;
         var uih = _markerParent.rect.height;
 
-        for (var i = 0; i < 4420; i++)
+        foreach (var box in detector.DetectedFaces)
         {
-            var score = scores[0, 0, i, 1];
-            if (score < 0.7f) continue;
-
-            var x1 = boxes[0, 0, i, 0] * uiw;
-            var y1 = boxes[0, 0, i, 1] * uih;
-            var x2 = boxes[0, 0, i, 2] * uiw;
-            var y2 = boxes[0, 0, i, 3] * uih;
+            var x1 = box.x1 * uiw;
+            var y1 = box.y1 * uih;
+            var x2 = box.x2 * uiw;
+            var y2 = box.y2 * uih;
 
             var marker = Instantiate(_markerPrefab, _markerParent);
             marker.anchoredPosition = new Vector2(x1, uih - y2);
