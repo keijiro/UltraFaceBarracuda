@@ -1,12 +1,14 @@
 using UnityEngine;
 using UI = UnityEngine.UI;
+using Klak.TestTools;
 
 namespace UltraFace {
 
-sealed class WebcamTest : MonoBehaviour
+public sealed class Visualizer : MonoBehaviour
 {
     #region Editable attributes
 
+    [SerializeField] ImageSource _source = null;
     [SerializeField, Range(0, 1)] float _scoreThreshold = 0.5f;
     [SerializeField, Range(0, 1)] float _overlapThreshold = 0.5f;
     [SerializeField] ResourceSet _resources = null;
@@ -18,11 +20,7 @@ sealed class WebcamTest : MonoBehaviour
 
     #region Internal objects
 
-    WebCamTexture _webcamRaw;
-    RenderTexture _webcamBuffer;
-
     FaceDetector _detector;
-
     Material _material;
     ComputeBuffer _drawArgs;
 
@@ -32,13 +30,6 @@ sealed class WebcamTest : MonoBehaviour
 
     void Start()
     {
-        // Texture allocation
-        _webcamRaw = new WebCamTexture();
-        _webcamBuffer = new RenderTexture(1920, 1080, 0);
-
-        _webcamRaw.Play();
-        _previewUI.texture = _webcamBuffer;
-
         // Face detector initialization
         _detector = new FaceDetector(_resources);
 
@@ -60,28 +51,19 @@ sealed class WebcamTest : MonoBehaviour
 
     void OnDestroy()
     {
-        if (_webcamRaw != null) Destroy(_webcamRaw);
-        if (_webcamBuffer != null) Destroy(_webcamBuffer);
         if (_material != null) Destroy(_material);
     }
 
     void Update()
     {
-        // Check if the webcam is ready (needed for macOS support)
-        if (_webcamRaw.width <= 16) return;
-
-        // Input buffer update with aspect ratio correction
-        var vflip = _webcamRaw.videoVerticallyMirrored;
-        var scale = new Vector2(1, vflip ? -1 : 1);
-        var offset = new Vector2(0, vflip ? 1 : 0);
-        Graphics.Blit(_webcamRaw, _webcamBuffer, scale, offset);
+        _previewUI.texture = _source.Texture;
 
         // Run the object detector with the webcam input.
         _detector.ProcessImage
-          (_webcamBuffer, _scoreThreshold, _overlapThreshold);
+          (_source.Texture, _scoreThreshold, _overlapThreshold);
     }
 
-    void OnPostRender()
+    void OnRenderObject()
     {
         // Bounding box visualization
         _detector.SetIndirectDrawCount(_drawArgs);
