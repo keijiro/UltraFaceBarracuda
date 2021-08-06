@@ -302,8 +302,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _source: {fileID: 1209952305}
-  _scoreThreshold: 0.5
-  _overlapThreshold: 0.5
+  _scoreThreshold: 0.3
+  _overlapThreshold: 0.3
   _resources: {fileID: 11400000, guid: 0e35379d12c75624e9d9e74bca0d4e4e, type: 2}
   _visualizer: {fileID: 4800000, guid: 9866adcd87910c74685aec826a2ac173, type: 3}
   _texture: {fileID: 2800000, guid: f2c570a71af3cec41a4b6965af4fcaa0, type: 3}
@@ -321,7 +321,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _sourceType: 0
-  _texture: {fileID: 2800000, guid: 6e4df74f29d97de4fb4903861ec3c293, type: 3}
+  _texture: {fileID: 2800000, guid: c97b84063f7aa4b7faaea9a8634a6631, type: 3}
   _textureUrl: 
   _video: {fileID: 0}
   _videoUrl: 
