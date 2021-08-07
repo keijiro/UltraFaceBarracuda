@@ -48,6 +48,14 @@
       },
       "url": "https://registry.npmjs.com"
     },
+    "jp.keijiro.ultraface": {
+      "version": "file:jp.keijiro.ultraface",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.unity.barracuda": "2.1.0-preview"
+      }
+    },
     "com.unity.modules.audio": {
       "version": "1.0.0",
       "depth": 1,

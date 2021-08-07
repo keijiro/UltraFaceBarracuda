@@ -8,7 +8,7 @@ Shader "Hidden/UltraFace/Visualizer"
     CGINCLUDE
 
     #include "UnityCG.cginc"
-    #include "../Shader/Common.hlsl"
+    #include "Packages/jp.keijiro.ultraface/Shader/Common.hlsl"
 
     float _Threshold;
     sampler2D _Texture;
