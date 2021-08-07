@@ -65,11 +65,11 @@ public sealed class Visualizer : MonoBehaviour
 
     void OnRenderObject()
     {
-        // Bounding box visualization
+        // Detection visualization
         _detector.SetIndirectDrawCount(_drawArgs);
         _material.SetFloat("_Threshold", _scoreThreshold);
         _material.SetTexture("_Texture", _texture);
-        _material.SetBuffer("_Boxes", _detector.BoundingBoxBuffer);
+        _material.SetBuffer("_Detections", _detector.DetectionBuffer);
         _material.SetPass(_texture == null ? 0 : 1);
         Graphics.DrawProceduralIndirectNow
           (MeshTopology.Triangles, _drawArgs, 0);

@@ -6,8 +6,9 @@
 #define IMAGE_HEIGHT 240
 #define MAX_DETECTION 4420
 
-// Bounding box structure used for storing object detection results
-struct BoundingBox
+// Detection data structure - The layout of this structure must be matched
+// with the one defined in Detection.cs.
+struct Detection
 {
     float x1, y1, x2, y2;
     float score;
@@ -16,15 +17,15 @@ struct BoundingBox
 
 // Common math functions
 
-float CalculateIOU(BoundingBox box1, BoundingBox box2)
+float CalculateIOU(in Detection d1, in Detection d2)
 {
-    float area0 = (box1.x2 - box1.x1) * (box1.y2 - box1.y1);
-    float area1 = (box2.x2 - box2.x1) * (box2.y2 - box2.y1);
+    float area0 = (d1.x2 - d1.x1) * (d1.y2 - d1.y1);
+    float area1 = (d2.x2 - d2.x1) * (d2.y2 - d2.y1);
 
-    float x1 = max(box1.x1, box2.x1);
-    float x2 = min(box1.x2, box2.x2);
-    float y1 = max(box1.y1, box2.y1);
-    float y2 = min(box1.y2, box2.y2);
+    float x1 = max(d1.x1, d2.x1);
+    float x2 = min(d1.x2, d2.x2);
+    float y1 = max(d1.y1, d2.y1);
+    float y2 = min(d1.y2, d2.y2);
     float areaInner = max(0, x2 - x1) * max(0, y2 - y1);
 
     return areaInner / (area0 + area1 - areaInner);

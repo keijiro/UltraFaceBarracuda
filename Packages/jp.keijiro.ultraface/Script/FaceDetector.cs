@@ -63,13 +63,13 @@ public sealed class FaceDetector : System.IDisposable
 
     #region Public accessors
 
-    public ComputeBuffer BoundingBoxBuffer
+    public ComputeBuffer DetectionBuffer
       => _post2Buffer;
 
     public void SetIndirectDrawCount(ComputeBuffer drawArgs)
       => ComputeBuffer.CopyCount(_post2Buffer, drawArgs, sizeof(uint));
 
-    public IEnumerable<BoundingBox> DetectedFaces
+    public IEnumerable<BoundingBox> Detections
       => _post2ReadCache ?? UpdatePost2ReadCache();
 
     #endregion
@@ -90,8 +90,9 @@ public sealed class FaceDetector : System.IDisposable
 
         // Preprocessing
         var pre = _resources.preprocess;
-        pre.SetTexture(0, "_Texture", sourceTexture);
-        pre.SetBuffer(0, "_Tensor", _preBuffer);
+        pre.SetTexture(0, "Input", sourceTexture);
+        pre.SetInts("ImageSize", Config.ImageWidth, Config.ImageHeight);
+        pre.SetBuffer(0, "Output", _preBuffer);
         pre.Dispatch(0, width / 8, height / 8, 1);
 
         // Run the UltraFace model.
@@ -113,10 +114,10 @@ public sealed class FaceDetector : System.IDisposable
 
         // 1st postprocess (bounding box aggregation)
         var post1 = _resources.postprocess1;
-        post1.SetFloat("_Threshold", scoreThreshold);
-        post1.SetTexture(0, "_Scores", scoresRT);
-        post1.SetTexture(0, "_Boxes", boxesRT);
-        post1.SetBuffer(0, "_Output", _post1Buffer);
+        post1.SetFloat("Threshold", scoreThreshold);
+        post1.SetTexture(0, "Scores", scoresRT);
+        post1.SetTexture(0, "Boxes", boxesRT);
+        post1.SetBuffer(0, "Output", _post1Buffer);
         post1.Dispatch(0, maxHits / 20, 1, 1);
 
         RenderTexture.ReleaseTemporary(scoresRT);
@@ -127,10 +128,10 @@ public sealed class FaceDetector : System.IDisposable
 
         // 2nd postprocess (overlap removal)
         var post2 = _resources.postprocess2;
-        post2.SetFloat("_Threshold", overlapThreshold);
-        post2.SetBuffer(0, "_Input", _post1Buffer);
-        post2.SetBuffer(0, "_Count", _countBuffer);
-        post2.SetBuffer(0, "_Output", _post2Buffer);
+        post2.SetFloat("Threshold", overlapThreshold);
+        post2.SetBuffer(0, "Input", _post1Buffer);
+        post2.SetBuffer(0, "Count", _countBuffer);
+        post2.SetBuffer(0, "Output", _post2Buffer);
         post2.Dispatch(0, 1, 1, 1);
 
         // Bounding box count after removal

@@ -12,7 +12,7 @@ Shader "Hidden/UltraFace/Visualizer"
 
     float _Threshold;
     sampler2D _Texture;
-    StructuredBuffer<BoundingBox> _Boxes;
+    StructuredBuffer<Detection> _Detections;
 
     //
     // Pass 0: Simple fill
@@ -28,7 +28,7 @@ Shader "Hidden/UltraFace/Visualizer"
         float v = vid < 2 || vid == 5;
 
         // Select a bounding box.
-        BoundingBox box = _Boxes[iid];
+        Detection box = _Detections[iid];
 
         // Vertex position
         float x =  2 * lerp(box.x1, box.x2, u) - 1;
@@ -63,7 +63,7 @@ Shader "Hidden/UltraFace/Visualizer"
         float v = vid < 2 || vid == 5;
 
         // Select a bounding box.
-        BoundingBox box = _Boxes[iid];
+        Detection box = _Detections[iid];
 
         // Box center
         float2 center = float2(box.x1 + box.x2, box.y1 + box.y2) / 2;

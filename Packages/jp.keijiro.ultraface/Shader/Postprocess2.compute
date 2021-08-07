@@ -1,34 +1,32 @@
-#pragma kernel Postprocess
+// Second stage postprocessing (overlap removal)
 
-//
-// 2nd postprocessor (overlap removal)
-//
+#pragma kernel Postprocess2
 
 #include "Common.hlsl"
 
-// Input uniforms
-ConsumeStructuredBuffer<BoundingBox> _Input;
-ByteAddressBuffer _Count;
-float _Threshold;
+// Input
+ConsumeStructuredBuffer<Detection> Input;
+ByteAddressBuffer Count;
+float Threshold;
 
-// Output uniforms
-AppendStructuredBuffer<BoundingBox> _Output;
+// Output
+AppendStructuredBuffer<Detection> Output;
 
 // Local arrays for data cache
 #define LOCAL_CACHE_SIZE 512
-groupshared BoundingBox _boxes[LOCAL_CACHE_SIZE];
+groupshared Detection _entries[LOCAL_CACHE_SIZE];
 groupshared bool _flags[LOCAL_CACHE_SIZE];
 
 [numthreads(1, 1, 1)]
-void Postprocess(uint3 id : SV_DispatchThreadID)
+void Postprocess2(uint3 id : SV_DispatchThreadID)
 {
     // Initialize data cache arrays
-    uint entry_count = min(_Count.Load(0), LOCAL_CACHE_SIZE);
+    uint entry_count = min(Count.Load(0), LOCAL_CACHE_SIZE);
     if (entry_count == 0) return;
 
     for (uint i = 0; i < entry_count; i++)
     {
-        _boxes[i] = _Input.Consume();
+        _entries[i] = Input.Consume();
         _flags[i] = true;
     }
 
@@ -42,10 +40,10 @@ void Postprocess(uint3 id : SV_DispatchThreadID)
             if (!_flags[j]) continue;
 
             // Overlap test
-            if (CalculateIOU(_boxes[i], _boxes[j]) < _Threshold) continue;
+            if (CalculateIOU(_entries[i], _entries[j]) < Threshold) continue;
 
             // Score comparison
-            if (_boxes[i].score < _boxes[j].score)
+            if (_entries[i].score < _entries[j].score)
             {
                 _flags[i] = false;
                 // The box in the outer loop is removed. Break the inner loop.
@@ -58,5 +56,5 @@ void Postprocess(uint3 id : SV_DispatchThreadID)
 
     // Output aggregation
     for (i = 0; i < entry_count; i++)
-        if (_flags[i]) _Output.Append(_boxes[i]);
+        if (_flags[i]) Output.Append(_entries[i]);
 }
