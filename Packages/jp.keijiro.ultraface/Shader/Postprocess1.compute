@@ -10,7 +10,8 @@ Texture2D<float> Boxes;
 float Threshold;
 
 // Output
-AppendStructuredBuffer<Detection> Output;
+RWStructuredBuffer<Detection> Output;
+RWStructuredBuffer<uint> OutputCount; // Only used as a counter
 
 [numthreads(20, 1, 1)]
 void Postprocess1(uint2 id : SV_DispatchThreadID)
@@ -27,5 +28,6 @@ void Postprocess1(uint2 id : SV_DispatchThreadID)
     data.score = score;
     data.pad = 0;
 
-    Output.Append(data);
+    uint count = OutputCount.IncrementCounter();
+    if (count < MAX_DETECTION) Output[count] = data;
 }

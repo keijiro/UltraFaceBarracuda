@@ -6,154 +6,143 @@ namespace UltraFace {
 
 public sealed class FaceDetector : System.IDisposable
 {
-    #region Internal objects
-
-    ResourceSet _resources;
-    ComputeBuffer _preBuffer;
-    ComputeBuffer _post1Buffer;
-    ComputeBuffer _post2Buffer;
-    ComputeBuffer _countBuffer;
-    IWorker _worker;
-
-    #endregion
-
-    #region Public constructor
+    #region Public methods/properties
 
     public FaceDetector(ResourceSet resources)
-    {
-        _resources = resources;
-
-        _preBuffer = new ComputeBuffer(Config.InputSize, sizeof(float));
-
-        _post1Buffer = new ComputeBuffer
-          (Config.MaxDetection, BoundingBox.Size, ComputeBufferType.Append);
-
-        _post2Buffer = new ComputeBuffer
-          (Config.MaxDetection, BoundingBox.Size, ComputeBufferType.Append);
-
-        _countBuffer = new ComputeBuffer
-          (1, sizeof(uint), ComputeBufferType.Raw);
-
-        _worker = ModelLoader.Load(_resources.model).CreateWorker();
-    }
-
-    #endregion
-
-    #region IDisposable implementation
+      => AllocateObjects(resources);
 
     public void Dispose()
-    {
-        _preBuffer?.Dispose();
-        _preBuffer = null;
+      => DeallocateObjects();
 
-        _post1Buffer?.Dispose();
-        _post1Buffer = null;
+    public void ProcessImage(Texture sourceTexture, float threshold)
+      => RunModel(sourceTexture, threshold);
 
-        _post2Buffer?.Dispose();
-        _post2Buffer = null;
+    public ComputeBuffer DetectionBuffer
+      => _buffers.post2;
 
-        _countBuffer?.Dispose();
-        _countBuffer = null;
+    public void SetIndirectDrawCount(ComputeBuffer drawArgs)
+      => ComputeBuffer.CopyCount(_buffers.post2, drawArgs, sizeof(uint));
 
-        _worker?.Dispose();
-        _worker = null;
-    }
+    //public IEnumerable<Detection> Detections
+    //  => _post2ReadCache ?? UpdatePost2ReadCache();
 
     #endregion
 
-    #region Public accessors
+    #region Private objects
 
-    public ComputeBuffer DetectionBuffer
-      => _post2Buffer;
+    ResourceSet _resources;
+    Config _config;
+    IWorker _worker;
 
-    public void SetIndirectDrawCount(ComputeBuffer drawArgs)
-      => ComputeBuffer.CopyCount(_post2Buffer, drawArgs, sizeof(uint));
+    (ComputeBuffer preprocess,
+     RenderTexture scores,
+     RenderTexture boxes,
+     ComputeBuffer post1,
+     ComputeBuffer post2,
+     ComputeBuffer counter,
+     ComputeBuffer countRead) _buffers;
 
-    public IEnumerable<BoundingBox> Detections
-      => _post2ReadCache ?? UpdatePost2ReadCache();
+    void AllocateObjects(ResourceSet resources)
+    {
+        // NN model loading
+        var model = ModelLoader.Load(resources.model);
+
+        // Private object initialization
+        _resources = resources;
+        _config = new Config(resources);
+        _worker = model.CreateWorker();
+
+        // Buffer allocation
+        _buffers.preprocess = new ComputeBuffer
+          (_config.InputFootprint, sizeof(float));
+
+        _buffers.scores = RTUtil.NewFloat(2, 4420);
+        _buffers.boxes = RTUtil.NewFloat(4, 4420);
+
+        _buffers.post1 = new ComputeBuffer
+          (Config.MaxDetection, Detection.Size);
+
+        _buffers.post2 = new ComputeBuffer
+          (Config.MaxDetection, Detection.Size, ComputeBufferType.Append);
+
+        _buffers.counter = new ComputeBuffer
+          (1, sizeof(uint), ComputeBufferType.Counter);
+
+        _buffers.countRead = new ComputeBuffer
+          (1, sizeof(uint), ComputeBufferType.Raw);
+    }
+
+    void DeallocateObjects()
+    {
+        _worker?.Dispose();
+        _worker = null;
+
+        _buffers.preprocess?.Dispose();
+        _buffers.preprocess = null;
+
+        ObjectUtil.Destroy(_buffers.scores);
+        _buffers.scores = null;
+
+        ObjectUtil.Destroy(_buffers.boxes);
+        _buffers.boxes = null;
+
+        _buffers.post1?.Dispose();
+        _buffers.post1 = null;
+
+        _buffers.post2?.Dispose();
+        _buffers.post2 = null;
+
+        _buffers.counter?.Dispose();
+        _buffers.counter = null;
+
+        _buffers.countRead?.Dispose();
+        _buffers.countRead = null;
+    }
 
     #endregion
 
     #region Main image processing function
 
-    public void ProcessImage
-      (Texture sourceTexture, float scoreThreshold, float overlapThreshold)
+    void RunModel(Texture source, float threshold)
     {
-        // Constant aliases
-        const int width = Config.ImageWidth;
-        const int height = Config.ImageHeight;
-        const int maxHits = Config.MaxDetection;
-
-        // Reset the compute buffer counters.
-        _post1Buffer.SetCounterValue(0);
-        _post2Buffer.SetCounterValue(0);
-
         // Preprocessing
         var pre = _resources.preprocess;
-        pre.SetTexture(0, "Input", sourceTexture);
-        pre.SetInts("ImageSize", Config.ImageWidth, Config.ImageHeight);
-        pre.SetBuffer(0, "Output", _preBuffer);
-        pre.Dispatch(0, width / 8, height / 8, 1);
+        pre.SetInts("ImageSize", _config.InputWidth, _config.InputHeight);
+        pre.SetTexture(0, "Input", source);
+        pre.SetBuffer(0, "Output", _buffers.preprocess);
+        pre.DispatchThreads(0, _config.InputWidth, _config.InputHeight, 1);
 
-        // Run the UltraFace model.
-        using (var tensor = new Tensor(1, height, width, 3, _preBuffer))
-            _worker.Execute(tensor);
+        // NNworker invocation
+        using (var t = new Tensor(_config.InputShape, _buffers.preprocess))
+            _worker.Execute(t);
 
-        // Output tensors -> Temporary render textures
-        var fmt = RenderTextureFormat.RFloat;
-        var scoresRT = RenderTexture.GetTemporary(2, maxHits, 0, fmt);
-        var  boxesRT = RenderTexture.GetTemporary(4, maxHits, 0, fmt);
+        // NN output retrieval
+        _worker.CopyOutput("scores", _buffers.scores);
+        _worker.CopyOutput("boxes", _buffers.boxes);
 
-        using (var tensor = _worker.PeekOutput("scores")
-                                   .Reshape(new TensorShape(1, maxHits, 2, 1)))
-            tensor.ToRenderTexture(scoresRT);
+        // Counter buffer reset
+        _buffers.post2.SetCounterValue(0);
+        _buffers.counter.SetCounterValue(0);
 
-        using (var tensor = _worker.PeekOutput("boxes")
-                                   .Reshape(new TensorShape(1, maxHits, 4, 1)))
-            tensor.ToRenderTexture(boxesRT);
-
-        // 1st postprocess (bounding box aggregation)
+        // First stage postprocessing: detection data aggregation
         var post1 = _resources.postprocess1;
-        post1.SetFloat("Threshold", scoreThreshold);
-        post1.SetTexture(0, "Scores", scoresRT);
-        post1.SetTexture(0, "Boxes", boxesRT);
-        post1.SetBuffer(0, "Output", _post1Buffer);
-        post1.Dispatch(0, maxHits / 20, 1, 1);
+        post1.SetFloat("Threshold", threshold);
+        post1.SetTexture(0, "Scores", _buffers.scores);
+        post1.SetTexture(0, "Boxes", _buffers.boxes);
+        post1.SetBuffer(0, "Output", _buffers.post1);
+        post1.SetBuffer(0, "OutputCount", _buffers.counter);
+        post1.DispatchThreads(0, 4420, 1, 1);
 
-        RenderTexture.ReleaseTemporary(scoresRT);
-        RenderTexture.ReleaseTemporary(boxesRT);
-
-        // Bounding box count
-        ComputeBuffer.CopyCount(_post1Buffer, _countBuffer, 0);
-
-        // 2nd postprocess (overlap removal)
+        // Second stage postprocessing: overlap removal
         var post2 = _resources.postprocess2;
-        post2.SetFloat("Threshold", overlapThreshold);
-        post2.SetBuffer(0, "Input", _post1Buffer);
-        post2.SetBuffer(0, "Count", _countBuffer);
-        post2.SetBuffer(0, "Output", _post2Buffer);
+        post2.SetFloat("Threshold", 0.5f);
+        post2.SetBuffer(0, "Input", _buffers.post1);
+        post2.SetBuffer(0, "InputCount", _buffers.counter);
+        post2.SetBuffer(0, "Output", _buffers.post2);
         post2.Dispatch(0, 1, 1, 1);
 
-        // Bounding box count after removal
-        ComputeBuffer.CopyCount(_post2Buffer, _countBuffer, 0);
-
-        // Read cache invalidation
-        _post2ReadCache = null;
-    }
-
-    #endregion
-
-    #region GPU to CPU readback function
-
-    BoundingBox[] _post2ReadCache;
-    int[] _countReadCache = new int[1];
-
-    BoundingBox[] UpdatePost2ReadCache()
-    {
-        _countBuffer.GetData(_countReadCache, 0, 0, 1);
-        var buffer = new BoundingBox[_countReadCache[0]];
-        _post2Buffer.GetData(buffer, 0, 0, buffer.Length);
-        return buffer;
+        // Detection count after removal
+        ComputeBuffer.CopyCount(_buffers.post2, _buffers.countRead, 0);
     }
 
     #endregion

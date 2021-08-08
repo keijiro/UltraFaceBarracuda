@@ -5,28 +5,27 @@
 #include "Common.hlsl"
 
 // Input
-ConsumeStructuredBuffer<Detection> Input;
-ByteAddressBuffer Count;
+StructuredBuffer<Detection> Input;
+RWStructuredBuffer<uint> InputCount; // Only used as a counter
 float Threshold;
 
 // Output
 AppendStructuredBuffer<Detection> Output;
 
 // Local arrays for data cache
-#define LOCAL_CACHE_SIZE 512
-groupshared Detection _entries[LOCAL_CACHE_SIZE];
-groupshared bool _flags[LOCAL_CACHE_SIZE];
+groupshared Detection _entries[MAX_DETECTION];
+groupshared bool _flags[MAX_DETECTION];
 
 [numthreads(1, 1, 1)]
 void Postprocess2(uint3 id : SV_DispatchThreadID)
 {
     // Initialize data cache arrays
-    uint entry_count = min(Count.Load(0), LOCAL_CACHE_SIZE);
+    uint entry_count = min(MAX_DETECTION, InputCount.IncrementCounter());
     if (entry_count == 0) return;
 
     for (uint i = 0; i < entry_count; i++)
     {
-        _entries[i] = Input.Consume();
+        _entries[i] = Input[i];
         _flags[i] = true;
     }
 

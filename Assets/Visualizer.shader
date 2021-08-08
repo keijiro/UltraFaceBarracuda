@@ -39,7 +39,7 @@ Shader "Hidden/UltraFace/Visualizer"
 
         // Vertex attributes
         position = float4(x, y, 1, 1);
-        color = float4(1, 0, 0, alpha);
+        color = float4(1, 0, 0, alpha * 0.8);
     }
 
     float4 FragmentFill(float4 position : SV_Position,
@@ -102,7 +102,7 @@ Shader "Hidden/UltraFace/Visualizer"
     {
         Pass
         {
-            ZTest Always ZWrite Off Cull Off Blend SrcAlpha One
+            ZTest Always ZWrite Off Cull Off Blend SrcAlpha OneMinusSrcAlpha
             CGPROGRAM
             #pragma vertex VertexFill
             #pragma fragment FragmentFill

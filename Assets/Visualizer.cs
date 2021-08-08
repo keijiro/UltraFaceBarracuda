@@ -9,8 +9,7 @@ public sealed class Visualizer : MonoBehaviour
     #region Editable attributes
 
     [SerializeField] ImageSource _source = null;
-    [SerializeField, Range(0, 1)] float _scoreThreshold = 0.5f;
-    [SerializeField, Range(0, 1)] float _overlapThreshold = 0.5f;
+    [SerializeField, Range(0, 1)] float _threshold = 0.5f;
     [SerializeField] ResourceSet _resources = null;
     [SerializeField] Shader _visualizer = null;
     [SerializeField] Texture2D _texture = null;
@@ -18,7 +17,7 @@ public sealed class Visualizer : MonoBehaviour
 
     #endregion
 
-    #region Internal objects
+    #region Private objects
 
     FaceDetector _detector;
     Material _material;
@@ -30,49 +29,34 @@ public sealed class Visualizer : MonoBehaviour
 
     void Start()
     {
-        // Face detector initialization
         _detector = new FaceDetector(_resources);
-
-        // Visualizer initialization
         _material = new Material(_visualizer);
-        _drawArgs = new ComputeBuffer
-          (4, sizeof(uint), ComputeBufferType.IndirectArguments);
+        _drawArgs = new ComputeBuffer(4, sizeof(uint),
+                                      ComputeBufferType.IndirectArguments);
         _drawArgs.SetData(new [] {6, 0, 0, 0});
-    }
-
-    void OnDisable()
-    {
-        _detector?.Dispose();
-        _detector = null;
-
-        _drawArgs?.Dispose();
-        _drawArgs = null;
     }
 
     void OnDestroy()
     {
-        if (_material != null) Destroy(_material);
+        _detector?.Dispose();
+        Destroy(_material);
+        _drawArgs?.Dispose();
     }
 
     void Update()
     {
+        _detector.ProcessImage(_source.Texture, _threshold);
         _previewUI.texture = _source.Texture;
-
-        // Run the object detector with the webcam input.
-        _detector.ProcessImage
-          (_source.Texture, _scoreThreshold, _overlapThreshold);
     }
 
     void OnRenderObject()
     {
-        // Detection visualization
         _detector.SetIndirectDrawCount(_drawArgs);
-        _material.SetFloat("_Threshold", _scoreThreshold);
+        _material.SetFloat("_Threshold", _threshold);
         _material.SetTexture("_Texture", _texture);
         _material.SetBuffer("_Detections", _detector.DetectionBuffer);
         _material.SetPass(_texture == null ? 0 : 1);
-        Graphics.DrawProceduralIndirectNow
-          (MeshTopology.Triangles, _drawArgs, 0);
+        Graphics.DrawProceduralIndirectNow(MeshTopology.Triangles, _drawArgs, 0);
     }
 
     #endregion

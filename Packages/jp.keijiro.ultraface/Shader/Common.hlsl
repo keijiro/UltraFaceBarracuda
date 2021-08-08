@@ -2,9 +2,7 @@
 #define _ULTRAFACEBARRACUDA_COMMON_H_
 
 // Pre-defined constants from our UltraFace model
-#define IMAGE_WIDTH 320
-#define IMAGE_HEIGHT 240
-#define MAX_DETECTION 4420
+#define MAX_DETECTION 512
 
 // Detection data structure - The layout of this structure must be matched
 // with the one defined in Detection.cs.
