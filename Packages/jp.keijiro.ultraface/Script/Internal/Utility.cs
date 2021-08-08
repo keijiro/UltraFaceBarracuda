@@ -19,8 +19,11 @@ static class ObjectUtil
 
 static class RTUtil
 {
-    public static RenderTexture NewFloat(int w, int h)
-      => new RenderTexture(w, h, 0, RenderTextureFormat.RFloat);
+    public static RenderTexture NewFloat2(int w, int h)
+      => new RenderTexture(w, h, 0, RenderTextureFormat.RGFloat);
+
+    public static RenderTexture NewFloat4(int w, int h)
+      => new RenderTexture(w, h, 0, RenderTextureFormat.ARGBFloat);
 }
 
 #endregion
@@ -40,18 +43,6 @@ static class ComputeShaderExtensions
         z = (z + (int)zc - 1) / (int)zc;
 
         compute.Dispatch(kernel, x, y, z);
-    }
-}
-
-static class IWorkerExtensions
-{
-    public static void CopyOutput
-      (this IWorker worker, string tensorName, RenderTexture rt)
-    {
-        var output = worker.PeekOutput(tensorName);
-        var shape = new TensorShape(1, rt.height, rt.width, 1);
-        using var tensor = output.Reshape(shape);
-        tensor.ToRenderTexture(rt);
     }
 }
 

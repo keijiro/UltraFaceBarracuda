@@ -5,8 +5,8 @@
 #include "Common.hlsl"
 
 // Input
-Texture2D<float> Scores;
-Texture2D<float> Boxes;
+Texture2D<float2> Scores;
+Texture2D<float4> Boxes;
 float Threshold;
 
 // Output
@@ -16,15 +16,17 @@ RWStructuredBuffer<uint> OutputCount; // Only used as a counter
 [numthreads(20, 1, 1)]
 void Postprocess1(uint2 id : SV_DispatchThreadID)
 {
-    float score = Scores[uint2(1, id.x)];
+    float score = Scores[uint2(id.x, 0)].y;
+    float4 box = Boxes[uint2(id.x, 0)];
+
     if (score < Threshold) return;
 
     Detection data;
 
-    data.x1 = Boxes[uint2(0, id.x)];
-    data.y1 = Boxes[uint2(1, id.x)];
-    data.x2 = Boxes[uint2(2, id.x)];
-    data.y2 = Boxes[uint2(3, id.x)];
+    data.x1 = box.x;
+    data.y1 = box.y;
+    data.x2 = box.z;
+    data.y2 = box.w;
     data.score = score;
     data.pad = 0;
 

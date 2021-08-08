@@ -58,8 +58,8 @@ public sealed class FaceDetector : System.IDisposable
         _buffers.preprocess = new ComputeBuffer
           (_config.InputFootprint, sizeof(float));
 
-        _buffers.scores = RTUtil.NewFloat(2, _config.OutputCount);
-        _buffers.boxes = RTUtil.NewFloat(4, _config.OutputCount);
+        _buffers.scores = RTUtil.NewFloat2(_config.OutputCount, 1);
+        _buffers.boxes = RTUtil.NewFloat4(_config.OutputCount, 1);
 
         _buffers.post1 = new ComputeBuffer
           (Config.MaxDetection, Detection.Size);
@@ -122,8 +122,8 @@ public sealed class FaceDetector : System.IDisposable
             _worker.Execute(t);
 
         // NN output retrieval
-        _worker.CopyOutput("scores", _buffers.scores);
-        _worker.CopyOutput("boxes", _buffers.boxes);
+        _worker.PeekOutput("scores").ToRenderTexture(_buffers.scores);
+        _worker.PeekOutput("boxes").ToRenderTexture(_buffers.boxes);
 
         // Counter buffer reset
         _buffers.post2.SetCounterValue(0);
