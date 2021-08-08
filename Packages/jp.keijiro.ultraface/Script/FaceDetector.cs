@@ -58,8 +58,8 @@ public sealed class FaceDetector : System.IDisposable
         _buffers.preprocess = new ComputeBuffer
           (_config.InputFootprint, sizeof(float));
 
-        _buffers.scores = RTUtil.NewFloat2(_config.OutputCount, 1);
-        _buffers.boxes = RTUtil.NewFloat4(_config.OutputCount, 1);
+        _buffers.scores = RTUtil.NewFloat2(_config.OutputCount / 20, 20);
+        _buffers.boxes = RTUtil.NewFloat4(_config.OutputCount / 20, 20);
 
         _buffers.post1 = new ComputeBuffer
           (Config.MaxDetection, Detection.Size);
@@ -122,8 +122,8 @@ public sealed class FaceDetector : System.IDisposable
             _worker.Execute(t);
 
         // NN output retrieval
-        _worker.PeekOutput("scores").ToRenderTexture(_buffers.scores);
-        _worker.PeekOutput("boxes").ToRenderTexture(_buffers.boxes);
+        _worker.CopyOutput("scores", _buffers.scores);
+        _worker.CopyOutput("boxes", _buffers.boxes);
 
         // Counter buffer reset
         _buffers.post2.SetCounterValue(0);
@@ -131,12 +131,13 @@ public sealed class FaceDetector : System.IDisposable
 
         // First stage postprocessing: detection data aggregation
         var post1 = _resources.postprocess1;
-        post1.SetFloat("Threshold", threshold);
         post1.SetTexture(0, "Scores", _buffers.scores);
         post1.SetTexture(0, "Boxes", _buffers.boxes);
+        post1.SetDimensions("InputSize", _buffers.boxes);
+        post1.SetFloat("Threshold", threshold);
         post1.SetBuffer(0, "Output", _buffers.post1);
         post1.SetBuffer(0, "OutputCount", _buffers.counter);
-        post1.DispatchThreads(0, _config.OutputCount, 1, 1);
+        post1.DispatchThreadPerPixel(0, _buffers.boxes);
 
         // Second stage postprocessing: overlap removal
         var post2 = _resources.postprocess2;

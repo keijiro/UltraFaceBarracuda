@@ -24,6 +24,9 @@ static class RTUtil
 
     public static RenderTexture NewFloat4(int w, int h)
       => new RenderTexture(w, h, 0, RenderTextureFormat.ARGBFloat);
+
+    public static int CountChannels(RenderTexture rt)
+      => rt.format == RenderTextureFormat.RGFloat ? 2 : 4;
 }
 
 #endregion
@@ -32,6 +35,10 @@ static class RTUtil
 
 static class ComputeShaderExtensions
 {
+    public static void SetDimensions
+      (this ComputeShader compute, string name, Texture texture)
+      => compute.SetInts(name, texture.width, texture.height);
+
     public static void DispatchThreads
       (this ComputeShader compute, int kernel, int x, int y, int z)
     {
@@ -43,6 +50,23 @@ static class ComputeShaderExtensions
         z = (z + (int)zc - 1) / (int)zc;
 
         compute.Dispatch(kernel, x, y, z);
+    }
+
+    public static void DispatchThreadPerPixel
+      (this ComputeShader compute, int kernel, Texture texture)
+      => compute.DispatchThreads(kernel, texture.width, texture.height, 1);
+}
+
+static class IWorkerExtensions
+{
+    public static void CopyOutput
+      (this IWorker worker, string tensorName, RenderTexture rt)
+    {
+        var output = worker.PeekOutput(tensorName);
+        var channels = RTUtil.CountChannels(rt);
+        var shape = new TensorShape(1, rt.height, rt.width, channels);
+        using var tensor = output.Reshape(shape);
+        tensor.ToRenderTexture(rt);
     }
 }
 

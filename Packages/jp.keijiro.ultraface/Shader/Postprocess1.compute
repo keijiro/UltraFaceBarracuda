@@ -7,17 +7,20 @@
 // Input
 Texture2D<float2> Scores;
 Texture2D<float4> Boxes;
+uint2 InputSize;
 float Threshold;
 
 // Output
 RWStructuredBuffer<Detection> Output;
 RWStructuredBuffer<uint> OutputCount; // Only used as a counter
 
-[numthreads(20, 1, 1)]
+[numthreads(16, 4, 1)]
 void Postprocess1(uint2 id : SV_DispatchThreadID)
 {
-    float score = Scores[uint2(id.x, 0)].y;
-    float4 box = Boxes[uint2(id.x, 0)];
+    if (!all(id < InputSize)) return;
+
+    float score = Scores[uint2(id.x, id.y)].y;
+    float4 box = Boxes[uint2(id.x, id.y)];
 
     if (score < Threshold) return;
 
