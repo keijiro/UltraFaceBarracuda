@@ -17,14 +17,14 @@ public sealed class FaceDetector : System.IDisposable
     public void ProcessImage(Texture sourceTexture, float threshold)
       => RunModel(sourceTexture, threshold);
 
+    public IEnumerable<Detection> Detections
+      => _readCache.Cached;
+
     public ComputeBuffer DetectionBuffer
       => _buffers.post2;
 
     public void SetIndirectDrawCount(ComputeBuffer drawArgs)
       => ComputeBuffer.CopyCount(_buffers.post2, drawArgs, sizeof(uint));
-
-    //public IEnumerable<Detection> Detections
-    //  => _post2ReadCache ?? UpdatePost2ReadCache();
 
     #endregion
 
@@ -41,6 +41,8 @@ public sealed class FaceDetector : System.IDisposable
      ComputeBuffer post2,
      ComputeBuffer counter,
      ComputeBuffer countRead) _buffers;
+
+    DetectionCache _readCache;
 
     void AllocateObjects(ResourceSet resources)
     {
@@ -70,6 +72,9 @@ public sealed class FaceDetector : System.IDisposable
 
         _buffers.countRead = new ComputeBuffer
           (1, sizeof(uint), ComputeBufferType.Raw);
+
+        // Detection data read cache initialization
+        _readCache = new DetectionCache(_buffers.post2, _buffers.countRead);
     }
 
     void DeallocateObjects()
@@ -143,6 +148,9 @@ public sealed class FaceDetector : System.IDisposable
 
         // Detection count after removal
         ComputeBuffer.CopyCount(_buffers.post2, _buffers.countRead, 0);
+
+        // Cache data invalidation
+        _readCache.Invalidate();
     }
 
     #endregion

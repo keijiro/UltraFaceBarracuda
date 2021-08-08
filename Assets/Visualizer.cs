@@ -47,6 +47,9 @@ public sealed class Visualizer : MonoBehaviour
     {
         _detector.ProcessImage(_source.Texture, _threshold);
         _previewUI.texture = _source.Texture;
+
+        if (Input.GetMouseButtonDown(0))
+            foreach (var d in _detector.Detections) Debug.Log(d);
     }
 
     void OnRenderObject()

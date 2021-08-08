@@ -57,4 +57,35 @@ static class IWorkerExtensions
 
 #endregion
 
+#region GPU to CPU readback helpers
+
+sealed class DetectionCache
+{
+    ComputeBuffer _dataBuffer;
+    ComputeBuffer _countBuffer;
+
+    Detection[] _cached;
+    int[] _countRead = new int[1];
+
+    public DetectionCache(ComputeBuffer data, ComputeBuffer count)
+      => (_dataBuffer, _countBuffer) = (data, count);
+
+    public Detection[] Cached => _cached ?? UpdateCache();
+
+    public void Invalidate() => _cached = null;
+
+    public Detection[] UpdateCache()
+    {
+        _countBuffer.GetData(_countRead, 0, 0, 1);
+        var count = _countRead[0];
+
+        _cached = new Detection[count];
+        _dataBuffer.GetData(_cached, 0, 0, count);
+
+        return _cached;
+    }
+}
+
+#endregion
+
 } // namespace UltraFace
