@@ -16,6 +16,7 @@ struct Config
 
     public int InputWidth { get; private set; }
     public int InputHeight { get; private set; }
+    public int OutputCount { get; private set; }
 
     #endregion
 
@@ -34,10 +35,13 @@ struct Config
 
     #region Constructor
 
-    public Config(ResourceSet resources)
+    public Config(ResourceSet resources, Model model)
     {
-        InputWidth = 320;
-        InputHeight = 240;
+        var inShape = model.inputs[0].shape;
+        var outShape = model.GetShapeByName(model.outputs[0]).Value;
+        InputWidth = inShape[6];
+        InputHeight = inShape[5];
+        OutputCount = outShape[6];
     }
 
     #endregion

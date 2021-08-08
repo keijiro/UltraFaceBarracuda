@@ -51,15 +51,15 @@ public sealed class FaceDetector : System.IDisposable
 
         // Private object initialization
         _resources = resources;
-        _config = new Config(resources);
+        _config = new Config(resources, model);
         _worker = model.CreateWorker();
 
         // Buffer allocation
         _buffers.preprocess = new ComputeBuffer
           (_config.InputFootprint, sizeof(float));
 
-        _buffers.scores = RTUtil.NewFloat(2, 4420);
-        _buffers.boxes = RTUtil.NewFloat(4, 4420);
+        _buffers.scores = RTUtil.NewFloat(2, _config.OutputCount);
+        _buffers.boxes = RTUtil.NewFloat(4, _config.OutputCount);
 
         _buffers.post1 = new ComputeBuffer
           (Config.MaxDetection, Detection.Size);
@@ -136,7 +136,7 @@ public sealed class FaceDetector : System.IDisposable
         post1.SetTexture(0, "Boxes", _buffers.boxes);
         post1.SetBuffer(0, "Output", _buffers.post1);
         post1.SetBuffer(0, "OutputCount", _buffers.counter);
-        post1.DispatchThreads(0, 4420, 1, 1);
+        post1.DispatchThreads(0, _config.OutputCount, 1, 1);
 
         // Second stage postprocessing: overlap removal
         var post2 = _resources.postprocess2;
