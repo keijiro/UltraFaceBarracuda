@@ -9,8 +9,8 @@
     }
   ],
   "dependencies": {
-    "com.unity.barracuda": "2.1.0-preview",
+    "com.unity.barracuda": "3.0.0",
     "com.unity.ugui": "1.0.0",
-    "jp.keijiro.klak.testtools": "1.0.3"
+    "jp.keijiro.klak.testtools": "1.1.0"
   }
 }
